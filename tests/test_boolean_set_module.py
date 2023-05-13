@@ -18,6 +18,12 @@ def test_invalid_input_bad_element_width() :
         BooleanSetModule('01|1')
     assert str(error.value) == "BooleanSetModule requires all set elements have the same number of bits. element '1' doesn't match first element '01'"
 
+def test_invalid_input_invalid_character() :
+    with pytest.raises(ValueError) as error :
+        BooleanSetModule('a')
+    assert str(error.value) == "BooleanSetModule element contains invalid character 'a'"
+
+
 
 if __name__ == '__main__' :
     test_invalid_input_empty_set()
