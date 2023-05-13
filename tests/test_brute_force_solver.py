@@ -33,7 +33,15 @@ def test_two_variable() :
     qubo_assert("-5/-1 11",     {'A':-1, 'B':-1}, { ('A','B') : -3 })
 
 def test_xor() :
-    qubo_assert( "0/1 000|011|101|110", {'A':1, 'B':1, 'C':1}, {('A','B'):1, ('A','C'):1, ('B','C'):1})
+    """ This is a simple structure that uses 3 internal variables to enforce an XOR structure onto 3 external variables"""
+    qubo_assert( "0/5 000000|011001|101010|110100", 
+                {'A':5, 'B':5, 'C':5, 'X':10, 'Y':10, 'Z':10}, 
+                {
+                    ('X', 'A'):-10, ('X', 'B'):-10, 
+                    ('Y', 'A'):-10, ('Y', 'C'):-10, 
+                    ('Z', 'B'):-10, ('Z', 'C'):-10, 
+                    ('X', 'Y'):100, ('X', 'Z'):100, ('Y','Z'):100
+                })
 
 if __name__ == '__main__' :
     test_one_variable()
