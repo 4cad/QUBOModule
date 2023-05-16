@@ -3,6 +3,8 @@ The boolean set module is a convenience wrapper for QUBO modules that enforce a 
 constraint by ensuring a module solution is optimal if and only if the external variable values
 are in the user provided set."""
 
+from types import SimpleNamespace
+
 from ortools.linear_solver import pywraplp
 from ortools.init import pywrapinit
 
@@ -18,6 +20,7 @@ class BooleanSetModule :
         self.elements = []
         self.element_set = set()
         self.enable_experimental_mip_embedding = False
+        self.has_zero = False
         if isinstance(input_set, str) :
             elements = input_set.split('|')
             if len(elements) == 0 or len(elements[0]) == 0:
@@ -44,12 +47,51 @@ class BooleanSetModule :
             else :
                 raise ValueError(f"BooleanSetModule element contains invalid character '{bit}'")
         
-        self.element_set.add(int(element, 2))
+        element_as_int = int(element, 2)
+        if element_as_int is 0 :
+            self.has_zero = True
+        self.element_set.add(element_as_int)
         self.elements.append(new_element)
     
-    def embed_onto_tile(self, tile : FullyConnectedTile) :
+    def embed(self) :
         """ Simple inefficient embedding, with one qubit per set element """
-        return tile
+        model = SimpleNamespace()
+        model.linear = dict()
+        model.quadratic = dict()
+        
+        # One variable for each of the external bits in the set. If 0 is in the set, we have to do things differently
+        if self.has_zero :
+            BASE_PENALTY = 10
+            # Lets start by punishing any bits for being 1
+            for i in range(self.width) :
+                model.linear[f'bit_{i}'] = BASE_PENALTY
+            
+            # Now we add a var for every element
+            for x in self.elements :
+                ones_count = 0
+                zeros_count = 0
+                for i in range(self.width) :
+                    if x[i] == 0 :
+                        zeros_count += 1
+                    else :
+                        ones_count += 1
+                
+                if ones_count == 0 :
+                    continue # We already designed this one in, it is the zero element
+                
+                # So we have bit_count * 10 penalty from the linear constraints, which we have to undo with the quadratic constraints on the 1 elements
+                weight = ones_count * BASE_PENALTY / self.width
+
+                for i in range(self.width) :
+                    if x[i] == 0 :
+                        coeff = -weight
+                    else :
+                        coeff = weight
+                    model.quadratic[(f'bit_{i}', f'indicator_{str(x)}')] = coeff
+        else :
+            raise NotImplementedError('Do not currently support bit sets that have no zero element.')
+
+        return model
         
     
     def embed_onto_tile_mip(self, tile : FullyConnectedTile) :

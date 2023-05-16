@@ -2,7 +2,8 @@
 #pylint: disable=missing-function-docstring line-too-long
 import pytest
 from qubo_module.boolean_set_module import BooleanSetModule
-#from qubo_module.tile import FullyConnectedTile
+from qubo_module.tile import FullyConnectedTile
+from qubo_module.brute_force_solver import BruteForceSolver
 
 def test_invalid_input_wrong_type() :
     with pytest.raises(ValueError) as error :
@@ -57,12 +58,24 @@ def test_three_variable_sets() :
     module = BooleanSetModule('110|101|011')
     assert module.elements == [[1,1,0], [1,0,1], [0,1,1]]
 
-@pytest.mark.skip(reason="not implemented yet")
+
+def solution_str(result) :
+    """ Formats the set of optimal solutions into an easy to assert against string """
+    solutions_str = '|'.join(
+        [''.join([str(var) for var in solution]) for solution in result.solutions]
+    )
+    return f'{result.best_obj:.0f}/{result.second_best_obj:.0f} {solutions_str}'
+
+def qubo_assert(expected_result, linear, quadratic) :
+    """ Asserts that the solution to the provided model is as stated. """
+    result = BruteForceSolver(linear, quadratic).solve()
+    assert expected_result == solution_str(result)
+
+
 def test_embedding_single_variable_sets() :
-    pass
-    #module = BooleanSetModule('1')
-    #tile = FullyConnectedTile(width=1, height=0, internal_bit_count=0)
-    #module.embed_onto_tile(tile)
+    module = BooleanSetModule('0')
+    embedding = module.embed()
+    qubo_assert("0/10 0", embedding.linear, embedding.quadratic)
 
 if __name__ == '__main__' :
     test_embedding_single_variable_sets()
