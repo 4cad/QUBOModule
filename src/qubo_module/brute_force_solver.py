@@ -9,7 +9,7 @@ class BruteForceSolver :
     """ Solve a QUBO problem instance by brute force. """
     MAX_VARIABLES = 16
 
-    def __init__(self, linear={}, quadratic={}):
+    def __init__(self, linear, quadratic):
         self.model = { 'linear' : linear, 'quadratic' : quadratic }
         self.variable_count = 0
         self.var_idx_by_name = {}
