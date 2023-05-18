@@ -17,7 +17,6 @@ class BruteForceSolver :
         self.linear_coeffs = []
         self.quadratic_coeffs = []
 
-
         for key in linear :
             variable = self.__process_var(key)
             self.linear_coeffs.append((variable, linear[key]))
@@ -65,6 +64,15 @@ class BruteForceSolver :
         result.gap = result.second_best_obj - result.best_obj
         # We need to actually implement something here
         return result
+    
+    def for_each_solution(self, fn) :
+        """ Iterates all the solutions to the model """
+        for solution in itertools.product([0,1], repeat=self.variable_count) :
+            obj = self.__evaluate(solution)
+            mapped_solution = {}
+            for i in range(self.variable_count) :
+                mapped_solution[ self.var_name_by_idx[i] ] = solution[i]
+            fn(mapped_solution, obj)
 
     def __evaluate(self, solution) :
         energy = 0

@@ -1,8 +1,9 @@
 """ Basic tests of user defined boolean set modules. """
 #pylint: disable=missing-function-docstring line-too-long
+from math import isclose
+import itertools
 import pytest
 from qubo_module.boolean_set_module import BooleanSetModule
-from qubo_module.tile import FullyConnectedTile
 from qubo_module.brute_force_solver import BruteForceSolver
 
 def test_invalid_input_wrong_type() :
@@ -66,16 +67,71 @@ def solution_str(result) :
     )
     return f'{result.best_obj:.0f}/{result.second_best_obj:.0f} {solutions_str}'
 
-def qubo_assert(expected_result, linear, quadratic) :
-    """ Asserts that the solution to the provided model is as stated. """
-    result = BruteForceSolver(linear, quadratic).solve()
-    assert expected_result == solution_str(result)
+def element_to_string(x) :
+    return ''.join([str(char) for char in x])
 
-
-def test_embedding_single_variable_sets() :
-    module = BooleanSetModule('0')
+def validate_set_module(set_str) :
+    module = BooleanSetModule(set_str)
     embedding = module.embed()
-    qubo_assert("0/10 0", embedding.linear, embedding.quadratic)
+    result = BruteForceSolver(embedding.linear, embedding.quadratic).solve()
+    optimal_obj = result.best_obj
+
+    # Each element should appear exactly once
+    actual_elements = set()
+    def validate_embedding(solution, obj) :
+        element, _ = embedding.map_to_element(solution)
+        if element is not None :
+            #assert isclose(obj, optimal_obj, rel_tol=1e-6)
+            element_str = element_to_string(element)
+            #assert not element_str in actual_elements # Each element should be in exactly one optimal solution
+            actual_elements.add(element_str)
+        else :
+            assert not isclose(obj, optimal_obj, rel_tol=1e-6)
+
+    solver = BruteForceSolver(embedding.linear, embedding.quadratic)
+    solver.for_each_solution(validate_embedding)
+
+    assert actual_elements == module.element_string_set
+    assert len(actual_elements) == set_str.count('|')+1
+
+def test_embedding_one_variable_sets() :
+    validate_set_module('0')
+    validate_set_module('0|1')
+
+def test_embedding_two_variable_sets() :
+    validate_set_module('00')
+    validate_set_module('00|11')
+    validate_set_module('00|10')
+    validate_set_module('00|01')
+    validate_set_module('00|10|01')
+    validate_set_module('00|10|11')
+    validate_set_module('00|01|11')
+    validate_set_module('00|01|10|11')
+
+def allsubsets(s):
+    return list(itertools.chain(*[itertools.combinations(s, ni) for ni in range(len(s)+1)]))
+
+def test_embedding_three_variable_sets() :
+    # This here is the magic of quantum computing... we have to dive into the world of powersets just to test it
+    states = [''.join(x) for x in list(itertools.product('01', repeat=3))]
+    for subset in allsubsets(states) :
+        if len(subset) == 0 :
+            continue
+        subset_str='|'.join(subset)
+        if '000' not in subset_str :
+            continue # We don't currently only support sets that contain zero
+        validate_set_module(subset_str)
+
+@pytest.mark.skip(reason="takes super long because we are doing an exponential operaton per powerset entry of an exponential")
+def test_embedding_four_variable_sets() :
+    states = [''.join(x) for x in list(itertools.product('01', repeat=4))]
+    for subset in allsubsets(states) :
+        if len(subset) == 0 :
+            continue
+        subset_str='|'.join(subset)
+        if '0000' not in subset_str :
+            continue # We don't currently only support sets that contain zero
+        validate_set_module(subset_str)
 
 if __name__ == '__main__' :
-    test_embedding_single_variable_sets()
+    test_embedding_three_variable_sets()
